@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
-import keyboard
+import pyautogui
+import time
 
 # Initialize MediaPipe Pose module
 mp_drawing = mp.solutions.drawing_utils
@@ -11,6 +12,28 @@ pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 # Open the camera
 cap = cv2.VideoCapture(0)
+time.sleep(2)  # Camera warm-up
+
+current_keys = set()
+
+def update_keys(action):
+    global current_keys
+
+    keys_to_press = set()
+    if action == "left":
+        keys_to_press.add("left")
+    elif action == "right":
+        keys_to_press.add("right")
+    elif action == "jump":
+        keys_to_press.add("up")
+
+    for key in keys_to_press - current_keys:
+        pyautogui.keyDown(key)
+
+    for key in current_keys - keys_to_press:
+        pyautogui.keyUp(key)
+
+    current_keys = keys_to_press
 
 while cap.isOpened():
     success, image = cap.read()
@@ -33,18 +56,37 @@ while cap.isOpened():
         landmarks = results.pose_landmarks.landmark
 
         # Get the Y-coordinates of wrists and nose
-        left_wrist_y = landmarks[mp_pose.PoseLandmark.LEFT_WRIST].y
-        right_wrist_y = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST].y
-        nose_y = landmarks[mp_pose.PoseLandmark.NOSE].y
+        left_wrist_y = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST].y
+        right_wrist_y = landmarks[mp_pose.PoseLandmark.LEFT_WRIST].y
+        left_shoulder_y = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER].y
+        right_shoulder_y = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER].y
 
-        # Check if both wrists are higher (smaller Y) than the nose
-        if left_wrist_y < nose_y and right_wrist_y < nose_y:
-            cv2.putText(image, "Jump!", (50, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            keyboard.press_and_release('space')  # Trigger space key
+        action = None
+
+        # Jump: both wrists above both shoulder
+        if left_wrist_y < left_shoulder_y and right_wrist_y < right_shoulder_y:
+            action = "jump"
+        # Move Left: left wrist above left shoulder
+        elif left_wrist_y < left_shoulder_y:
+            action = "left"
+        # Move Right: right wrist above right shoulder
+        elif right_wrist_y < right_shoulder_y:
+            action = "right"
+        else:
+            action = "idle"
+
+        update_keys(action)
+
+        # Optional: show action on frame
+        if action:
+            cv2.putText(image, f"Action: {action}", (50,50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+        
+        # Draw pose landmarks
+        mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
     # Display the image
-    cv2.imshow('Pose Control', image)
+    cv2.imshow("Pose Key Sender", image)
 
     # Press 'q' to quit
     if cv2.waitKey(5) & 0xFF == ord('q'):
