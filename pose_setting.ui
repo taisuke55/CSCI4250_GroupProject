@@ -28,6 +28,8 @@
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <layout class="QGridLayout" name="gridLayout">
+
+      <!-- row 0, col 0 : Both hands up -->
       <item row="0" column="0">
        <layout class="QVBoxLayout" name="layout_both">
         <item>
@@ -57,10 +59,41 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="comboBox_Both_hands_up"/>
+         <widget class="QLineEdit" name="keyEdit_Both_hands_up">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_both_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_Both">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_Both">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_Both">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </item>
+
+      <!-- row 0, col 1 : Left hand up -->
       <item row="0" column="1">
        <layout class="QVBoxLayout" name="layout_left">
         <item>
@@ -90,10 +123,41 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="comboBox_Left_hand_up"/>
+         <widget class="QLineEdit" name="keyEdit_Left_hand_up">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_left_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_Left">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_Left">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_Left">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </item>
+
+      <!-- row 1, col 0 : Right hand up -->
       <item row="1" column="0">
        <layout class="QVBoxLayout" name="layout_right">
         <item>
@@ -123,10 +187,41 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="comboBox_Right_hand_up"/>
+         <widget class="QLineEdit" name="keyEdit_Right_hand_up">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_right_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_Right">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_Right">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_Right">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </item>
+
+      <!-- row 1, col 1 : Idle -->
       <item row="1" column="1">
        <layout class="QVBoxLayout" name="layout_idle">
         <item>
@@ -156,10 +251,41 @@
          </widget>
         </item>
         <item>
-         <widget class="QComboBox" name="comboBox_Idle"/>
+         <widget class="QLineEdit" name="keyEdit_Idle">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_idle_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_Idle">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_Idle">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_Idle">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </item>
+
+      <!-- row 2 : Start / Close buttons -->
       <item row="2" column="0">
        <widget class="QPushButton" name="StartButton">
         <property name="text">
@@ -174,6 +300,7 @@
         </property>
        </widget>
       </item>
+
      </layout>
     </item>
    </layout>

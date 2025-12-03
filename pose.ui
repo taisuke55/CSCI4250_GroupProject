@@ -10,12 +10,6 @@
     <height>441</height>
    </rect>
   </property>
-  <property name="maximumSize">
-   <size>
-    <width>6400</width>
-    <height>3200</height>
-   </size>
-  </property>
   <property name="font">
    <font>
     <family>HP Simplified</family>
@@ -31,76 +25,43 @@
    <locale language="English" country="UnitedStates"/>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="1,0,0,0">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <widget class="QLabel" name="videoLabel">
       <property name="minimumSize">
        <size>
-        <width>480</width>
-        <height>270</height>
+        <width>0</width>
+        <height>0</height>
        </size>
       </property>
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>16777215</height>
-       </size>
-      </property>
-      <property name="frameShape">
-       <enum>QFrame::Box</enum>
-      </property>
-      <property name="text">
-       <string>Video will appear here</string>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(0, 0, 0);</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
       </property>
+      <property name="text">
+       <string/>
+      </property>
      </widget>
     </item>
     <item>
-     <layout class="QHBoxLayout" name="statusLayout">
+     <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <widget class="QLabel" name="gestureLabel">
+       <widget class="QPushButton" name="Setting_Button">
         <property name="text">
-         <string>Gesture: -</string>
+         <string>Setting</string>
         </property>
        </widget>
       </item>
       <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <widget class="QLabel" name="actionLabel">
+       <widget class="QPushButton" name="Close_Button">
         <property name="text">
-         <string>Action: -</string>
+         <string>Close</string>
         </property>
        </widget>
       </item>
      </layout>
-    </item>
-    <item>
-     <widget class="QPushButton" name="Setting_Button">
-      <property name="text">
-       <string>Setting</string>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <widget class="QPushButton" name="Close_Button">
-      <property name="text">
-       <string>Close</string>
-      </property>
-     </widget>
     </item>
    </layout>
   </widget>
