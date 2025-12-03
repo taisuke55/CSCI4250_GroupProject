@@ -25,66 +25,154 @@
    <locale language="English" country="UnitedStates"/>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="0">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <item>
      <layout class="QGridLayout" name="gridLayout">
-      <item row="0" column="4" rowspan="2">
-       <layout class="QVBoxLayout" name="verticalLayout_buttons">
+      <item row="0" column="0">
+       <layout class="QVBoxLayout" name="layout_both">
         <item>
-         <widget class="QPushButton" name="StartButton">
+         <widget class="QLabel" name="label_both_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
           <property name="text">
-           <string>Start</string>
+           <string/>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="CloseButton">
+         <widget class="QLabel" name="label_both">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
           <property name="text">
-           <string>Close</string>
+           <string>Both hands up</string>
           </property>
          </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBox_Both_hands_up"/>
         </item>
        </layout>
       </item>
       <item row="0" column="1">
-       <widget class="QComboBox" name="comboBox_Both_hands_up"/>
-      </item>
-      <item row="0" column="0">
-       <widget class="QLabel" name="label_both">
-        <property name="text">
-         <string>Both hands up</string>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="2">
-       <widget class="QLabel" name="label_left">
-        <property name="text">
-         <string>Left hand up</string>
-        </property>
-       </widget>
+       <layout class="QVBoxLayout" name="layout_left">
+        <item>
+         <widget class="QLabel" name="label_left_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_left">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Left hand up</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBox_Left_hand_up"/>
+        </item>
+       </layout>
       </item>
       <item row="1" column="0">
-       <widget class="QLabel" name="label_right">
-        <property name="text">
-         <string>Right hand up</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="3">
-       <widget class="QComboBox" name="comboBox_Idle"/>
-      </item>
-      <item row="0" column="3">
-       <widget class="QComboBox" name="comboBox_Left_hand_up"/>
-      </item>
-      <item row="1" column="2">
-       <widget class="QLabel" name="label_idle">
-        <property name="text">
-         <string>Idle</string>
-        </property>
-       </widget>
+       <layout class="QVBoxLayout" name="layout_right">
+        <item>
+         <widget class="QLabel" name="label_right_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_right">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Right hand up</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBox_Right_hand_up"/>
+        </item>
+       </layout>
       </item>
       <item row="1" column="1">
-       <widget class="QComboBox" name="comboBox_Right_hand_up"/>
+       <layout class="QVBoxLayout" name="layout_idle">
+        <item>
+         <widget class="QLabel" name="label_idle_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_idle">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Idle</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="comboBox_Idle"/>
+        </item>
+       </layout>
+      </item>
+      <item row="2" column="0">
+       <widget class="QPushButton" name="StartButton">
+        <property name="text">
+         <string>Start</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QPushButton" name="CloseButton">
+        <property name="text">
+         <string>Close</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>

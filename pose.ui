@@ -6,9 +6,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>960</width>
-    <height>640</height>
+    <width>498</width>
+    <height>441</height>
    </rect>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>6400</width>
+    <height>3200</height>
+   </size>
   </property>
   <property name="font">
    <font>
@@ -30,8 +36,14 @@
      <widget class="QLabel" name="videoLabel">
       <property name="minimumSize">
        <size>
-        <width>640</width>
-        <height>360</height>
+        <width>480</width>
+        <height>270</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>16777215</height>
        </size>
       </property>
       <property name="frameShape">
@@ -55,13 +67,6 @@
        </widget>
       </item>
       <item>
-       <widget class="QLabel" name="actionLabel">
-        <property name="text">
-         <string>Action: -</string>
-        </property>
-       </widget>
-      </item>
-      <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -73,6 +78,13 @@
          </size>
         </property>
        </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="actionLabel">
+        <property name="text">
+         <string>Action: -</string>
+        </property>
+       </widget>
       </item>
      </layout>
     </item>

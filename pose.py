@@ -255,6 +255,23 @@ class SettingsWindow(QtWidgets.QMainWindow):
 
         self.btn_start = self.findChild(QtWidgets.QPushButton, "StartButton")
         self.btn_close = self.findChild(QtWidgets.QPushButton, "CloseButton")
+        
+        #image labels
+        self.label_both_img = self.findChild(
+            QtWidgets.QLabel, "label_both_img"
+        )
+        self.label_left_img = self.findChild(
+            QtWidgets.QLabel, "label_left_img"
+        )
+        self.label_right_img = self.findChild(
+            QtWidgets.QLabel, "label_right_img"
+        )
+        self.label_idle_img = self.findChild(
+            QtWidgets.QLabel, "label_idle_img"
+        )
+
+        #load images
+        self.load_pose_images()
 
         # Fill combo boxes with action choices
         for cb in (self.cb_both, self.cb_left, self.cb_right, self.cb_idle):
@@ -267,6 +284,38 @@ class SettingsWindow(QtWidgets.QMainWindow):
         # Connect buttons
         self.btn_start.clicked.connect(self.on_start_clicked)
         self.btn_close.clicked.connect(self.close)
+
+    def load_pose_images(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        img_dir = os.path.join(base_dir, "img")
+
+        def set_icon(label, filename):
+            if label is None:
+                return
+            path = os.path.join(img_dir, filename)
+            if not os.path.exists(path):
+                return
+            pix = QtGui.QPixmap(path)
+            if pix.isNull():
+                return
+
+            size = label.size()
+            if size.width() == 0 or size.height() == 0:
+                w = h = 150
+            else:
+                w, h = size.width(), size.height()
+
+            pix = pix.scaled(
+                w, h,
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation,
+            )
+            label.setPixmap(pix)
+
+        set_icon(self.label_both_img,  "both_hand.png")
+        set_icon(self.label_left_img,  "left_hand.png")
+        set_icon(self.label_right_img, "right_hand.png")
+        set_icon(self.label_idle_img,  "idle.png")
 
     def set_mapping(self, mapping: dict):
         """
