@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>960</width>
-    <height>497</height>
+    <height>600</height>
    </rect>
   </property>
   <property name="font">
@@ -26,10 +26,11 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
+
     <item>
      <layout class="QGridLayout" name="gridLayout">
 
-      <!-- row 0, col 0 : Both hands up -->
+      <!-- Row 0: both / left / right -->
       <item row="0" column="0">
        <layout class="QVBoxLayout" name="layout_both">
         <item>
@@ -93,7 +94,6 @@
        </layout>
       </item>
 
-      <!-- row 0, col 1 : Left hand up -->
       <item row="0" column="1">
        <layout class="QVBoxLayout" name="layout_left">
         <item>
@@ -157,8 +157,7 @@
        </layout>
       </item>
 
-      <!-- row 1, col 0 : Right hand up -->
-      <item row="1" column="0">
+      <item row="0" column="2">
        <layout class="QVBoxLayout" name="layout_right">
         <item>
          <widget class="QLabel" name="label_right_img">
@@ -221,8 +220,8 @@
        </layout>
       </item>
 
-      <!-- row 1, col 1 : Idle -->
-      <item row="1" column="1">
+      <!-- Row 1: idle / left high / right high -->
+      <item row="1" column="0">
        <layout class="QVBoxLayout" name="layout_idle">
         <item>
          <widget class="QLabel" name="label_idle_img">
@@ -285,24 +284,378 @@
        </layout>
       </item>
 
-      <!-- row 2 : Start / Close buttons -->
+      <item row="1" column="1">
+       <layout class="QVBoxLayout" name="layout_left_high">
+        <item>
+         <widget class="QLabel" name="label_left_high_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_left_high">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Left hand up (high elbow)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="keyEdit_Left_hand_up_high">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_left_high_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_LeftHigh">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_LeftHigh">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_LeftHigh">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+
+      <item row="1" column="2">
+       <layout class="QVBoxLayout" name="layout_right_high">
+        <item>
+         <widget class="QLabel" name="label_right_high_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_right_high">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Right hand up (high elbow)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="keyEdit_Right_hand_up_high">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_right_high_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_RightHigh">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_RightHigh">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_RightHigh">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+
+      <!-- Row 2: left leg / right leg / crouch -->
       <item row="2" column="0">
+       <layout class="QVBoxLayout" name="layout_left_leg">
+        <item>
+         <widget class="QLabel" name="label_left_leg_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_left_leg">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Left leg up</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="keyEdit_Left_leg_up">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_left_leg_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_LeftLeg">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_LeftLeg">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_LeftLeg">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+
+      <item row="2" column="1">
+       <layout class="QVBoxLayout" name="layout_right_leg">
+        <item>
+         <widget class="QLabel" name="label_right_leg_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_right_leg">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Right leg up</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="keyEdit_Right_leg_up">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_right_leg_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_RightLeg">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_RightLeg">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_RightLeg">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+
+      <item row="2" column="2">
+       <layout class="QVBoxLayout" name="layout_crouch">
+        <item>
+         <widget class="QLabel" name="label_crouch_img">
+          <property name="minimumSize">
+           <size>
+            <width>150</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_crouch">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="text">
+           <string>Crouch</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="keyEdit_Crouch">
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="layout_crouch_mods">
+          <item>
+           <widget class="QCheckBox" name="checkShift_Crouch">
+            <property name="text">
+             <string>Shift</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkCtrl_Crouch">
+            <property name="text">
+             <string>Ctrl</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="checkAlt_Crouch">
+            <property name="text">
+             <string>Alt</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+
+     </layout>
+    </item>
+
+    <item>
+     <widget class="QCheckBox" name="checkSaveForNext">
+      <property name="text">
+       <string>Save settings for next time</string>
+      </property>
+     </widget>
+    </item>
+
+    <item>
+     <layout class="QHBoxLayout" name="buttonsLayout">
+      <item>
+       <spacer name="horizontalSpacer_left">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
        <widget class="QPushButton" name="StartButton">
         <property name="text">
          <string>Start</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
+      <item>
        <widget class="QPushButton" name="CloseButton">
         <property name="text">
          <string>Close</string>
         </property>
        </widget>
       </item>
-
+      <item>
+       <spacer name="horizontalSpacer_right">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
      </layout>
     </item>
+
    </layout>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
