@@ -197,6 +197,28 @@ class PoseWorker(QtCore.QThread):
 
         return "idle"
 
+    def is_full_body_visible(self, landmarks):
+        """Check if major joints from shoulders to ankles are visible (approx full body)."""
+        pose_lm = self.mp_pose.PoseLandmark
+
+        required = [
+            pose_lm.LEFT_SHOULDER,
+            pose_lm.RIGHT_SHOULDER,
+            pose_lm.LEFT_HIP,
+            pose_lm.RIGHT_HIP,
+            pose_lm.LEFT_KNEE,
+            pose_lm.RIGHT_KNEE,
+            pose_lm.LEFT_ANKLE,
+            pose_lm.RIGHT_ANKLE,
+        ]
+
+        for r in required:
+            lm = landmarks[r]
+            # If landmark is not reliably visible or clearly off-screen, treat as not visible
+            if lm.visibility < 0.5 or lm.y < 0 or lm.y > 1:
+                return False
+        return True
+
     def run(self):
         pose = self.mp_pose.Pose(
             min_detection_confidence=0.5,
@@ -213,18 +235,27 @@ class PoseWorker(QtCore.QThread):
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 results = pose.process(rgb)
 
+                full_body_warning = ""
+
                 if results.pose_landmarks:
                     self.mp_drawing.draw_landmarks(
                         rgb,
                         results.pose_landmarks,
                         self.mp_pose.POSE_CONNECTIONS,
                     )
-                    gesture = self.detect_gesture(
-                        results.pose_landmarks.landmark
-                    )
+                    landmarks = results.pose_landmarks.landmark
+
+                    gesture = self.detect_gesture(landmarks)
                     self.last_gestures.append(gesture)
+
+                    # Full body check: show warning if major joints are not all visible
+                    if not self.is_full_body_visible(landmarks):
+                        full_body_warning = "Please show your whole body to the camera"
+                    else:
+                        full_body_warning = ""
                 else:
                     self.last_gestures.append("idle")
+                    full_body_warning = "Please show your whole body to the camera"
 
                 if self.last_gestures:
                     gesture = collections.Counter(
@@ -242,7 +273,7 @@ class PoseWorker(QtCore.QThread):
                 cv2.rectangle(
                     overlay,
                     (10, 10),
-                    (340, 80),
+                    (520, 130),  # bigger HUD area to fit warning text
                     (0, 0, 0),
                     -1
                 )
@@ -271,6 +302,18 @@ class PoseWorker(QtCore.QThread):
                     2,
                     cv2.LINE_AA
                 )
+
+                if full_body_warning:
+                    cv2.putText(
+                        rgb,
+                        full_body_warning,
+                        (20, 105),
+                        font,
+                        0.75,
+                        (0, 255, 255),
+                        2,
+                        cv2.LINE_AA
+                    )
                 # ----------------------------------------
 
                 h, w, ch = rgb.shape
@@ -400,49 +443,49 @@ class SettingsWindow(QtWidgets.QMainWindow):
             alt.setChecked(mods["alt"])
 
         apply(mapping.get("both_hands_up", "up"),
-              self.key_both, self.findChild(QtWidgets.QCheckBox,"checkShift_Both"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_Both"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_Both"), "up")
+              self.key_both, self.findChild(QtWidgets.QCheckBox, "checkShift_Both"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_Both"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_Both"), "up")
 
         apply(mapping.get("left_hand_up", "left"),
-              self.key_left, self.findChild(QtWidgets.QCheckBox,"checkShift_Left"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_Left"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_Left"), "left")
+              self.key_left, self.findChild(QtWidgets.QCheckBox, "checkShift_Left"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_Left"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_Left"), "left")
 
         apply(mapping.get("right_hand_up", "right"),
-              self.key_right, self.findChild(QtWidgets.QCheckBox,"checkShift_Right"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_Right"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_Right"), "right")
+              self.key_right, self.findChild(QtWidgets.QCheckBox, "checkShift_Right"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_Right"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_Right"), "right")
 
         apply(mapping.get("idle", "none"),
-              self.key_idle, self.findChild(QtWidgets.QCheckBox,"checkShift_Idle"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_Idle"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_Idle"), "none")
+              self.key_idle, self.findChild(QtWidgets.QCheckBox, "checkShift_Idle"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_Idle"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_Idle"), "none")
 
         apply(mapping.get("left_hand_up_high", "none"),
-              self.key_left_high, self.findChild(QtWidgets.QCheckBox,"checkShift_LeftHigh"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_LeftHigh"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_LeftHigh"), "none")
+              self.key_left_high, self.findChild(QtWidgets.QCheckBox, "checkShift_LeftHigh"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_LeftHigh"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_LeftHigh"), "none")
 
         apply(mapping.get("right_hand_up_high", "none"),
-              self.key_right_high, self.findChild(QtWidgets.QCheckBox,"checkShift_RightHigh"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_RightHigh"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_RightHigh"), "none")
+              self.key_right_high, self.findChild(QtWidgets.QCheckBox, "checkShift_RightHigh"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_RightHigh"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_RightHigh"), "none")
 
         apply(mapping.get("left_leg_up", "none"),
-              self.key_left_leg, self.findChild(QtWidgets.QCheckBox,"checkShift_LeftLeg"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_LeftLeg"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_LeftLeg"), "none")
+              self.key_left_leg, self.findChild(QtWidgets.QCheckBox, "checkShift_LeftLeg"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_LeftLeg"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_LeftLeg"), "none")
 
         apply(mapping.get("right_leg_up", "none"),
-              self.key_right_leg, self.findChild(QtWidgets.QCheckBox,"checkShift_RightLeg"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_RightLeg"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_RightLeg"), "none")
+              self.key_right_leg, self.findChild(QtWidgets.QCheckBox, "checkShift_RightLeg"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_RightLeg"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_RightLeg"), "none")
 
         apply(mapping.get("crouch", "none"),
-              self.key_crouch, self.findChild(QtWidgets.QCheckBox,"checkShift_Crouch"),
-              self.findChild(QtWidgets.QCheckBox,"checkCtrl_Crouch"),
-              self.findChild(QtWidgets.QCheckBox,"checkAlt_Crouch"), "none")
+              self.key_crouch, self.findChild(QtWidgets.QCheckBox, "checkShift_Crouch"),
+              self.findChild(QtWidgets.QCheckBox, "checkCtrl_Crouch"),
+              self.findChild(QtWidgets.QCheckBox, "checkAlt_Crouch"), "none")
 
     def read_mapping_from_ui(self):
         def get(edit, shift, ctrl, alt, default_key):
@@ -458,49 +501,49 @@ class SettingsWindow(QtWidgets.QMainWindow):
 
         return {
             "both_hands_up": get(self.key_both,
-                                 self.findChild(QtWidgets.QCheckBox,"checkShift_Both"),
-                                 self.findChild(QtWidgets.QCheckBox,"checkCtrl_Both"),
-                                 self.findChild(QtWidgets.QCheckBox,"checkAlt_Both"),
+                                 self.findChild(QtWidgets.QCheckBox, "checkShift_Both"),
+                                 self.findChild(QtWidgets.QCheckBox, "checkCtrl_Both"),
+                                 self.findChild(QtWidgets.QCheckBox, "checkAlt_Both"),
                                  "up"),
             "left_hand_up": get(self.key_left,
-                                self.findChild(QtWidgets.QCheckBox,"checkShift_Left"),
-                                self.findChild(QtWidgets.QCheckBox,"checkCtrl_Left"),
-                                self.findChild(QtWidgets.QCheckBox,"checkAlt_Left"),
+                                self.findChild(QtWidgets.QCheckBox, "checkShift_Left"),
+                                self.findChild(QtWidgets.QCheckBox, "checkCtrl_Left"),
+                                self.findChild(QtWidgets.QCheckBox, "checkAlt_Left"),
                                 "left"),
             "right_hand_up": get(self.key_right,
-                                 self.findChild(QtWidgets.QCheckBox,"checkShift_Right"),
-                                 self.findChild(QtWidgets.QCheckBox,"checkCtrl_Right"),
-                                 self.findChild(QtWidgets.QCheckBox,"checkAlt_Right"),
+                                 self.findChild(QtWidgets.QCheckBox, "checkShift_Right"),
+                                 self.findChild(QtWidgets.QCheckBox, "checkCtrl_Right"),
+                                 self.findChild(QtWidgets.QCheckBox, "checkAlt_Right"),
                                  "right"),
             "idle": get(self.key_idle,
-                        self.findChild(QtWidgets.QCheckBox,"checkShift_Idle"),
-                        self.findChild(QtWidgets.QCheckBox,"checkCtrl_Idle"),
-                        self.findChild(QtWidgets.QCheckBox,"checkAlt_Idle"),
+                        self.findChild(QtWidgets.QCheckBox, "checkShift_Idle"),
+                        self.findChild(QtWidgets.QCheckBox, "checkCtrl_Idle"),
+                        self.findChild(QtWidgets.QCheckBox, "checkAlt_Idle"),
                         "none"),
             "left_hand_up_high": get(self.key_left_high,
-                                     self.findChild(QtWidgets.QCheckBox,"checkShift_LeftHigh"),
-                                     self.findChild(QtWidgets.QCheckBox,"checkCtrl_LeftHigh"),
-                                     self.findChild(QtWidgets.QCheckBox,"checkAlt_LeftHigh"),
+                                     self.findChild(QtWidgets.QCheckBox, "checkShift_LeftHigh"),
+                                     self.findChild(QtWidgets.QCheckBox, "checkCtrl_LeftHigh"),
+                                     self.findChild(QtWidgets.QCheckBox, "checkAlt_LeftHigh"),
                                      "none"),
             "right_hand_up_high": get(self.key_right_high,
-                                      self.findChild(QtWidgets.QCheckBox,"checkShift_RightHigh"),
-                                      self.findChild(QtWidgets.QCheckBox,"checkCtrl_RightHigh"),
-                                      self.findChild(QtWidgets.QCheckBox,"checkAlt_RightHigh"),
+                                      self.findChild(QtWidgets.QCheckBox, "checkShift_RightHigh"),
+                                      self.findChild(QtWidgets.QCheckBox, "checkCtrl_RightHigh"),
+                                      self.findChild(QtWidgets.QCheckBox, "checkAlt_RightHigh"),
                                       "none"),
             "left_leg_up": get(self.key_left_leg,
-                               self.findChild(QtWidgets.QCheckBox,"checkShift_LeftLeg"),
-                               self.findChild(QtWidgets.QCheckBox,"checkCtrl_LeftLeg"),
-                               self.findChild(QtWidgets.QCheckBox,"checkAlt_LeftLeg"),
+                               self.findChild(QtWidgets.QCheckBox, "checkShift_LeftLeg"),
+                               self.findChild(QtWidgets.QCheckBox, "checkCtrl_LeftLeg"),
+                               self.findChild(QtWidgets.QCheckBox, "checkAlt_LeftLeg"),
                                "none"),
             "right_leg_up": get(self.key_right_leg,
-                                self.findChild(QtWidgets.QCheckBox,"checkShift_RightLeg"),
-                                self.findChild(QtWidgets.QCheckBox,"checkCtrl_RightLeg"),
-                                self.findChild(QtWidgets.QCheckBox,"checkAlt_RightLeg"),
+                                self.findChild(QtWidgets.QCheckBox, "checkShift_RightLeg"),
+                                self.findChild(QtWidgets.QCheckBox, "checkCtrl_RightLeg"),
+                                self.findChild(QtWidgets.QCheckBox, "checkAlt_RightLeg"),
                                 "none"),
             "crouch": get(self.key_crouch,
-                          self.findChild(QtWidgets.QCheckBox,"checkShift_Crouch"),
-                          self.findChild(QtWidgets.QCheckBox,"checkCtrl_Crouch"),
-                          self.findChild(QtWidgets.QCheckBox,"checkAlt_Crouch"),
+                          self.findChild(QtWidgets.QCheckBox, "checkShift_Crouch"),
+                          self.findChild(QtWidgets.QCheckBox, "checkCtrl_Crouch"),
+                          self.findChild(QtWidgets.QCheckBox, "checkAlt_Crouch"),
                           "none"),
         }
 
@@ -590,14 +633,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
-        self.frame_aspect = None
-
         self.mapping = mapping
         self.worker = PoseWorker(mapping)
         self.worker.frameReady.connect(self.on_frame)
         self.worker.status.connect(self.on_status)
         self.worker.start()
 
+        # Show bigger window and video area on startup
         self.show()
         self.resize(960, 720)
         self.video_label.setMinimumSize(640, 480)
@@ -607,19 +649,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(QtGui.QImage)
     def on_frame(self, qimg):
-        if self.frame_aspect is None:
-            w = qimg.width()
-            h = qimg.height()
-            if h != 0:
-                self.frame_aspect = w / h
-
         pix = QtGui.QPixmap.fromImage(qimg)
         pix = pix.scaled(
             self.video_label.size(),
-            QtCore.Qt.KeepAspectRatioByExpanding,
+            QtCore.Qt.KeepAspectRatio,
             QtCore.Qt.SmoothTransformation,
         )
-
         self.video_label.setPixmap(pix)
 
     @QtCore.pyqtSlot(str, str)
@@ -631,34 +666,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.worker.stop()
             self.worker.wait(500)
         return super().closeEvent(e)
-    
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-
-        if not self.frame_aspect:
-            return
-
-        rect = self.centralWidget().contentsRect()
-        avail_w = rect.width()
-        avail_h = rect.height()
-
-        buttons_height = self.btn_setting.height()
-        avail_h = max(0, avail_h - buttons_height - 20)
-
-        if avail_w <= 0 or avail_h <= 0:
-            return
-
-        target_w = avail_w
-        target_h = int(target_w / self.frame_aspect)
-
-        if target_h > avail_h:
-            target_h = avail_h
-            target_w = int(target_h * self.frame_aspect)
-
-        self.video_label.setMinimumSize(target_w, target_h)
-        self.video_label.setMaximumSize(target_w, target_h)
-        self.video_label.resize(target_w, target_h)
-
 
 
 class AppController(QtCore.QObject):
