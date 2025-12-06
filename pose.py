@@ -590,24 +590,36 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
+        self.frame_aspect = None
+
         self.mapping = mapping
         self.worker = PoseWorker(mapping)
         self.worker.frameReady.connect(self.on_frame)
         self.worker.status.connect(self.on_status)
         self.worker.start()
-        
+
+        self.show()
+        self.resize(960, 720)
+        self.video_label.setMinimumSize(640, 480)
 
     def on_setting_clicked(self):
         self.requestSettings.emit()
 
     @QtCore.pyqtSlot(QtGui.QImage)
     def on_frame(self, qimg):
+        if self.frame_aspect is None:
+            w = qimg.width()
+            h = qimg.height()
+            if h != 0:
+                self.frame_aspect = w / h
+
         pix = QtGui.QPixmap.fromImage(qimg)
         pix = pix.scaled(
             self.video_label.size(),
-            QtCore.Qt.KeepAspectRatio,
+            QtCore.Qt.KeepAspectRatioByExpanding,
             QtCore.Qt.SmoothTransformation,
         )
+
         self.video_label.setPixmap(pix)
 
     @QtCore.pyqtSlot(str, str)
@@ -619,6 +631,34 @@ class MainWindow(QtWidgets.QMainWindow):
             self.worker.stop()
             self.worker.wait(500)
         return super().closeEvent(e)
+    
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+
+        if not self.frame_aspect:
+            return
+
+        rect = self.centralWidget().contentsRect()
+        avail_w = rect.width()
+        avail_h = rect.height()
+
+        buttons_height = self.btn_setting.height()
+        avail_h = max(0, avail_h - buttons_height - 20)
+
+        if avail_w <= 0 or avail_h <= 0:
+            return
+
+        target_w = avail_w
+        target_h = int(target_w / self.frame_aspect)
+
+        if target_h > avail_h:
+            target_h = avail_h
+            target_w = int(target_h * self.frame_aspect)
+
+        self.video_label.setMinimumSize(target_w, target_h)
+        self.video_label.setMaximumSize(target_w, target_h)
+        self.video_label.resize(target_w, target_h)
+
 
 
 class AppController(QtCore.QObject):
