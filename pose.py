@@ -595,6 +595,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.frameReady.connect(self.on_frame)
         self.worker.status.connect(self.on_status)
         self.worker.start()
+        
 
     def on_setting_clicked(self):
         self.requestSettings.emit()
