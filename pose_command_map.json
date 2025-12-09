@@ -3,9 +3,9 @@
   "left_hand_up": "left",
   "right_hand_up": "right",
   "idle": "none",
-  "left_hand_up_high": "shift+left",
-  "right_hand_up_high": "shift+right",
-  "left_leg_up": "up",
-  "right_leg_up": "up",
+  "left_hand_up_high": "none",
+  "right_hand_up_high": "none",
+  "left_leg_up": "shift",
+  "right_leg_up": "shift",
   "crouch": "down"
 }

@@ -411,7 +411,7 @@
       </item>
 
       <!-- Row 2: left leg / right leg / crouch -->
-      <item row="2" column="0">
+      <item row="2" column="1">
        <layout class="QVBoxLayout" name="layout_left_leg">
         <item>
          <widget class="QLabel" name="label_left_leg_img">
@@ -474,7 +474,7 @@
        </layout>
       </item>
 
-      <item row="2" column="1">
+      <item row="2" column="2">
        <layout class="QVBoxLayout" name="layout_right_leg">
         <item>
          <widget class="QLabel" name="label_right_leg_img">
@@ -537,7 +537,7 @@
        </layout>
       </item>
 
-      <item row="2" column="2">
+      <item row="2" column="0">
        <layout class="QVBoxLayout" name="layout_crouch">
         <item>
          <widget class="QLabel" name="label_crouch_img">

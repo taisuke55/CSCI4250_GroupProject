@@ -5,9 +5,11 @@ import pyautogui
 
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
 
+# Base paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "pose_command_map.json")
 
+# Supported gesture identifiers
 GESTURES = [
     "both_hands_up",
     "left_hand_up",
@@ -20,8 +22,45 @@ GESTURES = [
     "crouch",
 ]
 
+# Pretty names (gesture display in HUD)
+PRETTY_GESTURE_NAME = {
+    "both_hands_up": "Both hands up",
+    "left_hand_up": "Left hand up",
+    "right_hand_up": "Right hand up",
+    "idle": "Idle",
+    "left_hand_up_high": "Left hand up (high elbow)",
+    "right_hand_up_high": "Right hand up (high elbow)",
+    "left_leg_up": "Left leg up",
+    "right_leg_up": "Right leg up",
+    "crouch": "Crouch",
+}
+
+# Pretty names (action keys display in HUD)
+PRETTY_KEY_NAME = {
+    "left": "Left arrow",
+    "right": "Right arrow",
+    "up": "Up arrow",
+    "down": "Down arrow",
+    "space": "Space",
+    "shift": "Shift",
+    "ctrl": "Ctrl",
+    "alt": "Alt",
+}
+
+# Threshold (in normalized y difference) to decide leg is "up".
+# Smaller value → easier to detect raised leg.
+LEG_LIFT_THRESHOLD = 0.03
+
+
+# =============================================================
+#                 CONFIG (LOAD / SAVE)
+# =============================================================
 
 def load_mapping():
+    """
+    Load saved gesture→action mapping from JSON.
+    If mapping file does not exist, load defaults.
+    """
     defaults = {
         "both_hands_up": "up",
         "left_hand_up": "left",
@@ -39,19 +78,30 @@ def load_mapping():
                 data = json.load(f)
             defaults.update(data)
         except Exception:
+            # If loading fails, just use defaults
             pass
     return defaults
 
 
 def save_mapping(mapping):
+    """Write mapping dictionary to JSON file."""
     try:
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(mapping, f, indent=2)
     except Exception:
+        # Fail silently – mapping is not critical data
         pass
 
 
+# =============================================================
+#                 STRING ↔ ACTION HELPERS
+# =============================================================
+
 def parse_action_string(action_str):
+    """
+    Parse "ctrl+space" → (base="space", mods={"ctrl":True,"shift":False,...})
+    Used to populate UI fields and modifier checkboxes.
+    """
     base_key = "none"
     mods = {"shift": False, "ctrl": False, "alt": False}
     if not action_str:
@@ -59,35 +109,49 @@ def parse_action_string(action_str):
     s = action_str.strip().lower()
     if s == "" or s == "none":
         return "none", mods
+
     parts = [p.strip() for p in s.split("+") if p.strip()]
     for p in parts:
         if p in mods:
             mods[p] = True
         else:
             base_key = p
+
     if not base_key:
         base_key = "none"
     return base_key, mods
 
 
 def build_action_string(base_key, mods):
+    """
+    Combine base key and modifier bools → "ctrl+left".
+    Used when reading back from the UI fields into mapping.
+    """
     k = (base_key or "").strip().lower()
     if k == "" or k == "none":
+        # No base key: if no modifiers either, this means "none"
         if not any(mods.values()):
             return "none"
         k = ""
+
     keys = []
     for m in ("ctrl", "alt", "shift"):
         if mods.get(m, False):
             keys.append(m)
+
     if k and k != "none":
         keys.append(k)
+
     if not keys:
         return "none"
     return "+".join(keys)
 
 
 def keys_from_action_string(action_str):
+    """
+    Convert "left+space" → {"left","space"} for simultaneous key presses.
+    If action is "none", returns empty set (no key pressed).
+    """
     if not action_str:
         return set()
     s = action_str.strip().lower()
@@ -97,7 +161,15 @@ def keys_from_action_string(action_str):
     return set(parts)
 
 
+# =============================================================
+#                      POSE HELPERS
+# =============================================================
+
 def knee_angle(hip, knee, ankle):
+    """
+    Calculate knee joint angle in degrees using vector math.
+    Smaller angle → more bent knee.
+    """
     v1x = hip.x - knee.x
     v1y = hip.y - knee.y
     v2x = ankle.x - knee.x
@@ -112,7 +184,15 @@ def knee_angle(hip, knee, ankle):
     return math.degrees(math.acos(cos_theta))
 
 
+# =============================================================
+#                     POSE WORKER THREAD
+# =============================================================
+
 class PoseWorker(QtCore.QThread):
+    """
+    Capture camera frames, run MediaPipe pose detection,
+    determine gestures, and simulate keyboard input.
+    """
     frameReady = QtCore.pyqtSignal(QtGui.QImage)
     status = QtCore.pyqtSignal(str, str)
 
@@ -121,22 +201,50 @@ class PoseWorker(QtCore.QThread):
         self.mapping = mapping
         self._running = True
         self.current_keys = set()
+        # For smoothing: store last N primary gestures
         self.last_gestures = collections.deque(maxlen=10)
         self.mp_pose = mp.solutions.pose
         self.mp_drawing = mp.solutions.drawing_utils
 
+    # -----------------------
+    # Key simulation
+    # -----------------------
     def set_mapping(self, mapping: dict):
+        """Update gesture→action mapping while running."""
         self.mapping = mapping
 
     def update_keys(self, desired_keys):
+        """
+        Update which keys are currently being held down.
+
+        desired_keys: set of key names such as {"left", "space"}.
+        """
         desired = set(desired_keys) if desired_keys else set()
+
+        # Press new keys
         for k in desired - self.current_keys:
             pyautogui.keyDown(k)
+
+        # Release keys no longer needed
         for k in self.current_keys - desired:
             pyautogui.keyUp(k)
+
         self.current_keys = desired
 
+    # -----------------------
+    # Gesture detection
+    # -----------------------
     def detect_gesture(self, landmarks):
+        """
+        Determine all simultaneous gestures detected in this frame.
+
+        Returns:
+            primary: str      (gesture used as "main" for smoothing/debug)
+            flags: dict       (all gestures that are currently active,
+                               e.g., {"left_hand_up":True,"left_leg_up":True,...})
+        """
+        # Hands: note we flip the frame horizontally, so RIGHT_* appears
+        # on the left side of the screen visually (user's right hand).
         lw = landmarks[self.mp_pose.PoseLandmark.RIGHT_WRIST].y
         rw = landmarks[self.mp_pose.PoseLandmark.LEFT_WRIST].y
         ls = landmarks[self.mp_pose.PoseLandmark.RIGHT_SHOULDER].y
@@ -145,13 +253,31 @@ class PoseWorker(QtCore.QThread):
         le = landmarks[self.mp_pose.PoseLandmark.RIGHT_ELBOW].y
         re = landmarks[self.mp_pose.PoseLandmark.LEFT_ELBOW].y
 
-        lh = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP]
-        rh = landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP]
-        lk = landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE]
-        rk = landmarks[self.mp_pose.PoseLandmark.RIGHT_KNEE]
-        la = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE]
-        ra = landmarks[self.mp_pose.PoseLandmark.RIGHT_ANKLE]
+        # Legs: also mirror to match what the user sees on screen.
+        # Because the frame is flipped horizontally:
+        #   RIGHT_* landmarks appear on the left side of the screen
+        #   LEFT_*  landmarks appear on the right side of the screen
+        lh = landmarks[self.mp_pose.PoseLandmark.RIGHT_HIP]   # screen-left leg
+        rh = landmarks[self.mp_pose.PoseLandmark.LEFT_HIP]    # screen-right leg
+        lk = landmarks[self.mp_pose.PoseLandmark.RIGHT_KNEE]
+        rk = landmarks[self.mp_pose.PoseLandmark.LEFT_KNEE]
+        la = landmarks[self.mp_pose.PoseLandmark.RIGHT_ANKLE]
+        ra = landmarks[self.mp_pose.PoseLandmark.LEFT_ANKLE]
 
+        left_knee_deg = knee_angle(lh, lk, la)
+        right_knee_deg = knee_angle(rh, rk, ra)
+        left_knee_bent = left_knee_deg < 160.0
+        right_knee_bent = right_knee_deg < 160.0
+
+        # Leg up detection: if one ankle is higher (smaller y) than the other
+        # by LEG_LIFT_THRESHOLD or more.
+        left_leg_up = la.y < ra.y - LEG_LIFT_THRESHOLD
+        right_leg_up = ra.y < la.y - LEG_LIFT_THRESHOLD
+
+        ankles_close = abs(la.y - ra.y) < 0.05
+        crouch = left_knee_bent and right_knee_bent and ankles_close
+
+        # Basic conditions for arms
         left_wrist_up = lw < ls
         right_wrist_up = rw < rs
         both_hands = left_wrist_up and right_wrist_up
@@ -161,44 +287,75 @@ class PoseWorker(QtCore.QThread):
         left_elbow_high = le < ls
         right_elbow_high = re < rs
 
-        left_knee_deg = knee_angle(lh, lk, la)
-        right_knee_deg = knee_angle(rh, rk, ra)
-        left_knee_bent = left_knee_deg < 160.0
-        right_knee_bent = right_knee_deg < 160.0
+        # Initialize flags for all gestures
+        flags = {
+            "both_hands_up": False,
+            "left_hand_up": False,
+            "right_hand_up": False,
+            "left_hand_up_high": False,
+            "right_hand_up_high": False,
+            "left_leg_up": False,
+            "right_leg_up": False,
+            "crouch": False,
+            "idle": False,
+        }
 
-        left_leg_up = la.y < ra.y - 0.05
-        right_leg_up = ra.y < la.y - 0.05
-
-        ankles_close = abs(la.y - ra.y) < 0.05
-        crouch = left_knee_bent and right_knee_bent and ankles_close
-
+        # Legs and crouch
         if crouch:
-            return "crouch"
-
-        if both_hands:
-            return "both_hands_up"
+            flags["crouch"] = True
 
         if left_leg_up and not right_leg_up:
-            return "left_leg_up"
-        if right_leg_up and not left_leg_up:
-            return "right_leg_up"
+            flags["left_leg_up"] = True
+        elif right_leg_up and not left_leg_up:
+            flags["right_leg_up"] = True
 
-        if left_wrist_up and not right_wrist_up:
-            if left_elbow_low:
-                return "left_hand_up"
-            elif left_elbow_high:
-                return "left_hand_up_high"
+        # Arms
+        if both_hands:
+            flags["both_hands_up"] = True
+        else:
+            if left_wrist_up and not right_wrist_up:
+                if left_elbow_low:
+                    flags["left_hand_up"] = True
+                elif left_elbow_high:
+                    flags["left_hand_up_high"] = True
+            if right_wrist_up and not left_wrist_up:
+                if right_elbow_low:
+                    flags["right_hand_up"] = True
+                elif right_elbow_high:
+                    flags["right_hand_up_high"] = True
 
-        if right_wrist_up and not left_wrist_up:
-            if right_elbow_low:
-                return "right_hand_up"
-            elif right_elbow_high:
-                return "right_hand_up_high"
+        # Determine primary gesture using priority order
+        if flags["crouch"]:
+            primary = "crouch"
+        elif flags["both_hands_up"]:
+            primary = "both_hands_up"
+        elif flags["left_leg_up"]:
+            primary = "left_leg_up"
+        elif flags["right_leg_up"]:
+            primary = "right_leg_up"
+        elif flags["left_hand_up_high"]:
+            primary = "left_hand_up_high"
+        elif flags["right_hand_up_high"]:
+            primary = "right_hand_up_high"
+        elif flags["left_hand_up"]:
+            primary = "left_hand_up"
+        elif flags["right_hand_up"]:
+            primary = "right_hand_up"
+        else:
+            # No gesture detected → idle
+            primary = "idle"
+            flags["idle"] = True
 
-        return "idle"
+        return primary, flags
 
+    # -----------------------
+    # Visibility check
+    # -----------------------
     def is_full_body_visible(self, landmarks):
-        """Check if major joints from shoulders to ankles are visible (approx full body)."""
+        """
+        Heuristic check: are major joints present and visible?
+        Used to show a warning when pose detection confidence is low.
+        """
         pose_lm = self.mp_pose.PoseLandmark
 
         required = [
@@ -214,49 +371,68 @@ class PoseWorker(QtCore.QThread):
 
         for r in required:
             lm = landmarks[r]
-            # If landmark is not reliably visible or clearly off-screen, treat as not visible
             if lm.visibility < 0.5 or lm.y < 0 or lm.y > 1:
                 return False
         return True
 
+    # -----------------------
+    # Thread loop
+    # -----------------------
     def run(self):
+        """
+        Main worker loop:
+        - Capture camera
+        - Detect pose / gestures
+        - Build combined actions from hands + legs
+        - Update HUD
+        - Emit video frames to main UI
+        """
         pose = self.mp_pose.Pose(
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
         )
         cap = cv2.VideoCapture(0)
         time.sleep(0.4)
+
         try:
             while self._running and cap.isOpened():
+
                 ok, frame = cap.read()
                 if not ok:
                     break
+
+                # Mirror image
                 frame = cv2.flip(frame, 1)
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 results = pose.process(rgb)
 
                 full_body_warning = ""
+                active_flags = None
 
                 if results.pose_landmarks:
+                    # Draw skeleton
                     self.mp_drawing.draw_landmarks(
                         rgb,
                         results.pose_landmarks,
                         self.mp_pose.POSE_CONNECTIONS,
                     )
+
                     landmarks = results.pose_landmarks.landmark
+                    primary, flags = self.detect_gesture(landmarks)
 
-                    gesture = self.detect_gesture(landmarks)
-                    self.last_gestures.append(gesture)
+                    # Keep track of primary gesture for smoothing / debug
+                    self.last_gestures.append(primary)
+                    active_flags = flags
 
-                    # Full body check: show warning if major joints are not all visible
                     if not self.is_full_body_visible(landmarks):
                         full_body_warning = "Please show your whole body to the camera"
-                    else:
-                        full_body_warning = ""
                 else:
+                    # No landmarks → treat as idle
                     self.last_gestures.append("idle")
+                    active_flags = {"idle": True}
                     full_body_warning = "Please show your whole body to the camera"
 
+                # Smoothed primary gesture (used for fallback / debug)
                 if self.last_gestures:
                     gesture = collections.Counter(
                         self.last_gestures
@@ -264,16 +440,72 @@ class PoseWorker(QtCore.QThread):
                 else:
                     gesture = "idle"
 
-                action_name = self.mapping.get(gesture or "idle", "none")
-                desired_keys = keys_from_action_string(action_name)
+                # ------------------------------------------------
+                # Build combined actions from hand and leg groups
+                # ------------------------------------------------
+                desired_keys = set()
+
+                if active_flags is None:
+                    active_flags = {}
+
+                # Priority order for hand gestures
+                hand_priority = [
+                    "both_hands_up",
+                    "left_hand_up_high",
+                    "left_hand_up",
+                    "right_hand_up_high",
+                    "right_hand_up",
+                ]
+
+                # Priority order for leg / body gestures
+                leg_priority = [
+                    "crouch",
+                    "left_leg_up",
+                    "right_leg_up",
+                ]
+
+                # Pick one active hand gesture (if any)
+                active_hand = None
+                for g in hand_priority:
+                    if active_flags.get(g):
+                        active_hand = g
+                        break
+
+                # Pick one active leg gesture (if any)
+                active_leg = None
+                for g in leg_priority:
+                    if active_flags.get(g):
+                        active_leg = g
+                        break
+
+                # Combine actions from hand + leg
+                if active_hand:
+                    s = self.mapping.get(active_hand, "none")
+                    if s != "none":
+                        desired_keys |= keys_from_action_string(s)
+
+                if active_leg:
+                    s = self.mapping.get(active_leg, "none")
+                    if s != "none":
+                        desired_keys |= keys_from_action_string(s)
+
+                # If nothing from hand/leg produced an action, fall back to smoothed primary
+                if not desired_keys:
+                    fallback_action = self.mapping.get(gesture or "idle", "none")
+                    if fallback_action != "none":
+                        desired_keys = keys_from_action_string(fallback_action)
+
+                # Finally update key presses
                 self.update_keys(desired_keys)
 
-                # ---- Stylish HUD (left-top) with working font ----
+                # -------------------------------
+                # HUD overlay (gesture + action)
+                # -------------------------------
                 overlay = rgb.copy()
                 cv2.rectangle(
                     overlay,
                     (10, 10),
-                    (520, 130),  # bigger HUD area to fit warning text
+                    (520, 130),
                     (0, 0, 0),
                     -1
                 )
@@ -281,9 +513,26 @@ class PoseWorker(QtCore.QThread):
 
                 font = cv2.FONT_HERSHEY_DUPLEX
 
+                # ---- Display all simultaneous gestures in this frame ----
+                pretty_gesture = None
+                display_names = []
+
+                if active_flags:
+                    # List all active gestures except "idle"
+                    for g, on in active_flags.items():
+                        if on and g != "idle" and g in PRETTY_GESTURE_NAME:
+                            display_names.append(PRETTY_GESTURE_NAME[g])
+
+                if display_names:
+                    # e.g., "Right hand up + Left leg up"
+                    pretty_gesture = " + ".join(display_names)
+                else:
+                    # Fallback to smoothed primary gesture
+                    pretty_gesture = PRETTY_GESTURE_NAME.get(gesture, gesture)
+
                 cv2.putText(
                     rgb,
-                    f"Gesture: {gesture}",
+                    f"Gesture: {pretty_gesture}",
                     (20, 45),
                     font,
                     0.9,
@@ -292,9 +541,22 @@ class PoseWorker(QtCore.QThread):
                     cv2.LINE_AA
                 )
 
+                # ---- Display all keys in the combined action ----
+                if desired_keys:
+                    # Sort keys to show modifiers first, then others
+                    order = ["ctrl", "alt", "shift", "left", "right", "up", "down", "space"]
+                    sorted_keys = sorted(
+                        list(desired_keys),
+                        key=lambda k: order.index(k) if k in order else len(order)
+                    )
+                    display_keys = [PRETTY_KEY_NAME.get(p, p) for p in sorted_keys]
+                    action_text = " + ".join(display_keys)
+                else:
+                    action_text = "none"
+
                 cv2.putText(
                     rgb,
-                    f"Action: {action_name}",
+                    f"Action: {action_text}",
                     (20, 75),
                     font,
                     0.85,
@@ -314,8 +576,8 @@ class PoseWorker(QtCore.QThread):
                         2,
                         cv2.LINE_AA
                     )
-                # ----------------------------------------
 
+                # ---- Send frame to Qt UI ----
                 h, w, ch = rgb.shape
                 bytes_per_line = ch * w
                 qimg = QtGui.QImage(
@@ -325,9 +587,14 @@ class PoseWorker(QtCore.QThread):
                     bytes_per_line,
                     QtGui.QImage.Format_RGB888,
                 ).copy()
+
                 self.frameReady.emit(qimg)
-                self.status.emit(gesture, action_name)
+                # For status, we emit the smoothed primary gesture and joined keys
+                joined_keys = "+".join(sorted(desired_keys)) if desired_keys else "none"
+                self.status.emit(gesture, joined_keys)
+
         finally:
+            # Release all held keys on stop
             self.update_keys(None)
             try:
                 cap.release()
@@ -336,10 +603,21 @@ class PoseWorker(QtCore.QThread):
             cv2.destroyAllWindows()
 
     def stop(self):
+        """Stop thread loop."""
         self._running = False
 
 
+# =============================================================
+#                SETTINGS WINDOW (Qt UI)
+# =============================================================
+
 class SettingsWindow(QtWidgets.QMainWindow):
+    """
+    Settings window:
+    - Shows gesture images
+    - Lets user assign keys to each gesture
+    - Can optionally save mapping to JSON
+    """
     mappingChosen = QtCore.pyqtSignal(dict)
     closed = QtCore.pyqtSignal()
 
@@ -347,6 +625,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
         super().__init__()
         uic.loadUi(os.path.join(BASE_DIR, "pose_setting.ui"), self)
 
+        # Key input fields
         self.key_both = self.findChild(QtWidgets.QLineEdit, "keyEdit_Both_hands_up")
         self.key_left = self.findChild(QtWidgets.QLineEdit, "keyEdit_Left_hand_up")
         self.key_right = self.findChild(QtWidgets.QLineEdit, "keyEdit_Right_hand_up")
@@ -357,6 +636,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
         self.key_right_leg = self.findChild(QtWidgets.QLineEdit, "keyEdit_Right_leg_up")
         self.key_crouch = self.findChild(QtWidgets.QLineEdit, "keyEdit_Crouch")
 
+        # Pose image labels
         self.label_both_img = self.findChild(QtWidgets.QLabel, "label_both_img")
         self.label_left_img = self.findChild(QtWidgets.QLabel, "label_left_img")
         self.label_right_img = self.findChild(QtWidgets.QLabel, "label_right_img")
@@ -367,15 +647,19 @@ class SettingsWindow(QtWidgets.QMainWindow):
         self.label_right_leg_img = self.findChild(QtWidgets.QLabel, "label_right_leg_img")
         self.label_crouch_img = self.findChild(QtWidgets.QLabel, "label_crouch_img")
 
+        # Load PNG silhouette images
         self.load_pose_images()
 
+        # Load existing mapping and apply to UI
         mapping = load_mapping()
         self.set_mapping(mapping)
 
+        # Buttons and checkbox
         self.btn_start = self.findChild(QtWidgets.QPushButton, "StartButton")
         self.btn_close = self.findChild(QtWidgets.QPushButton, "CloseButton")
         self.chk_save = self.findChild(QtWidgets.QCheckBox, "checkSaveForNext")
 
+        # Make all key fields readonly and capture key events via eventFilter
         edits = [
             self.key_both,
             self.key_left,
@@ -394,10 +678,25 @@ class SettingsWindow(QtWidgets.QMainWindow):
 
         self._capturing_edit = None
 
+        # Connect buttons
         self.btn_start.clicked.connect(self.on_start_clicked)
         self.btn_close.clicked.connect(self.close)
 
+        # Center this window on screen after it is shown
+        QtCore.QTimer.singleShot(0, self.center_on_screen)
+
+    def center_on_screen(self):
+        """Move this window to the center of the primary screen."""
+        screen = QtWidgets.QApplication.primaryScreen()
+        if not screen:
+            return
+        screen_geo = screen.availableGeometry()
+        geo = self.frameGeometry()
+        geo.moveCenter(screen_geo.center())
+        self.move(geo.topLeft())
+
     def load_pose_images(self):
+        """Load and scale pose images into the labels."""
         img_dir = os.path.join(BASE_DIR, "img")
 
         def set_icon(label, filename):
@@ -413,6 +712,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
             w = label.width()
             h = label.height()
             if w == 0 or h == 0:
+                # Fallback default size when not yet laid out
                 w = h = 150
 
             pix = pix.scaled(
@@ -422,6 +722,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
             )
             label.setPixmap(pix)
 
+        # These filenames follow the user's preferred naming
         set_icon(self.label_both_img, "both_hand.png")
         set_icon(self.label_left_img, "left_hand.png")
         set_icon(self.label_right_img, "right_hand.png")
@@ -433,8 +734,12 @@ class SettingsWindow(QtWidgets.QMainWindow):
         set_icon(self.label_crouch_img, "crouch.png")
 
     def set_mapping(self, mapping: dict):
+        """
+        Apply mapping dict to UI fields and modifier checkboxes.
+        """
         def apply(one_action, edit, shift, ctrl, alt, default_key):
             base, mods = parse_action_string(one_action)
+            # If mapping is "none", still show a default base key in the box
             if base == "none":
                 base = default_key
             edit.setText(base)
@@ -473,14 +778,14 @@ class SettingsWindow(QtWidgets.QMainWindow):
               self.findChild(QtWidgets.QCheckBox, "checkAlt_RightHigh"), "none")
 
         apply(mapping.get("left_leg_up", "none"),
-              self.key_left_leg, self.findChild(QtWidgets.QCheckBox, "checkShift_LeftLeg"),
-              self.findChild(QtWidgets.QCheckBox, "checkCtrl_LeftLeg"),
-              self.findChild(QtWidgets.QCheckBox, "checkAlt_LeftLeg"), "none")
+            self.key_left_leg, self.findChild(QtWidgets.QCheckBox, "checkShift_LeftLeg"),
+            self.findChild(QtWidgets.QCheckBox, "checkCtrl_LeftLeg"),
+            self.findChild(QtWidgets.QCheckBox, "checkAlt_LeftLeg"), "none")
 
         apply(mapping.get("right_leg_up", "none"),
-              self.key_right_leg, self.findChild(QtWidgets.QCheckBox, "checkShift_RightLeg"),
-              self.findChild(QtWidgets.QCheckBox, "checkCtrl_RightLeg"),
-              self.findChild(QtWidgets.QCheckBox, "checkAlt_RightLeg"), "none")
+            self.key_right_leg, self.findChild(QtWidgets.QCheckBox, "checkShift_RightLeg"),
+            self.findChild(QtWidgets.QCheckBox, "checkCtrl_RightLeg"),
+            self.findChild(QtWidgets.QCheckBox, "checkAlt_RightLeg"), "none")
 
         apply(mapping.get("crouch", "none"),
               self.key_crouch, self.findChild(QtWidgets.QCheckBox, "checkShift_Crouch"),
@@ -488,6 +793,10 @@ class SettingsWindow(QtWidgets.QMainWindow):
               self.findChild(QtWidgets.QCheckBox, "checkAlt_Crouch"), "none")
 
     def read_mapping_from_ui(self):
+        """
+        Read values from UI fields and modifier checkboxes
+        and build a gesture→action mapping dict.
+        """
         def get(edit, shift, ctrl, alt, default_key):
             base = (edit.text() or "").strip().lower()
             if base == "":
@@ -548,12 +857,22 @@ class SettingsWindow(QtWidgets.QMainWindow):
         }
 
     def on_start_clicked(self):
+        """
+        When user presses Start:
+        - Read mapping from UI
+        - Optionally save to JSON
+        - Notify controller to open main window
+        """
         mapping = self.read_mapping_from_ui()
         if self.chk_save and self.chk_save.isChecked():
             save_mapping(mapping)
         self.mappingChosen.emit(mapping)
 
     def eventFilter(self, obj, event):
+        """
+        Capture key press into the focused QLineEdit.
+        Mouse click starts capture mode, then next key press is stored.
+        """
         edits = [
             self.key_both,
             self.key_left,
@@ -567,6 +886,7 @@ class SettingsWindow(QtWidgets.QMainWindow):
         ]
         if obj in edits:
             if event.type() == QtCore.QEvent.MouseButtonPress:
+                # Start capturing key for this field
                 self._capturing_edit = obj
                 obj.setText("Press a key...")
                 return True
@@ -580,13 +900,19 @@ class SettingsWindow(QtWidgets.QMainWindow):
         return super().eventFilter(obj, event)
 
     def key_event_to_name(self, event):
+        """
+        Convert Qt key event to a simple string
+        (letters, digits, arrows, space, enter, etc.).
+        """
         key = event.key()
         if key == QtCore.Qt.Key_Escape:
+            # Use ESC to set "none"
             return "none"
         if QtCore.Qt.Key_A <= key <= QtCore.Qt.Key_Z:
             return chr(key).lower()
         if QtCore.Qt.Key_0 <= key <= QtCore.Qt.Key_9:
             return str(key - QtCore.Qt.Key_0)
+
         special = {
             QtCore.Qt.Key_Space: "space",
             QtCore.Qt.Key_Tab: "tab",
@@ -603,20 +929,33 @@ class SettingsWindow(QtWidgets.QMainWindow):
         }
         if key in special:
             return special[key]
+
         if QtCore.Qt.Key_F1 <= key <= QtCore.Qt.Key_F12:
             num = key - QtCore.Qt.Key_F1 + 1
             return f"f{num}"
+
         text = event.text()
         if text:
             return text.lower()
         return None
 
     def closeEvent(self, e):
+        """Emit closed signal so controller can quit if needed."""
         self.closed.emit()
         return super().closeEvent(e)
 
 
+# =============================================================
+#                   MAIN WINDOW (VIDEO)
+# =============================================================
+
 class MainWindow(QtWidgets.QMainWindow):
+    """
+    Main camera window:
+    - Shows video + HUD
+    - Provides Setting / Close buttons
+    - Keeps itself on top (for playing games)
+    """
     requestSettings = QtCore.pyqtSignal()
 
     def __init__(self, mapping: dict):
@@ -631,6 +970,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.btn_setting.clicked.connect(self.on_setting_clicked)
         self.btn_close.clicked.connect(self.close)
 
+        # Keep window always on top
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 
         self.mapping = mapping
@@ -644,11 +984,28 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resize(960, 720)
         self.video_label.setMinimumSize(640, 480)
 
+        # Center this window on screen after layout is done
+        QtCore.QTimer.singleShot(0, self.center_on_screen)
+
+    def center_on_screen(self):
+        """Move this window to the center of the primary screen."""
+        screen = QtWidgets.QApplication.primaryScreen()
+        if not screen:
+            return
+        screen_geo = screen.availableGeometry()
+        geo = self.frameGeometry()
+        geo.moveCenter(screen_geo.center())
+        self.move(geo.topLeft())
+
     def on_setting_clicked(self):
+        """Ask controller to show settings window again."""
         self.requestSettings.emit()
 
     @QtCore.pyqtSlot(QtGui.QImage)
     def on_frame(self, qimg):
+        """
+        Receive QImage from worker and draw it scaled into video_label.
+        """
         pix = QtGui.QPixmap.fromImage(qimg)
         pix = pix.scaled(
             self.video_label.size(),
@@ -659,16 +1016,34 @@ class MainWindow(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot(str, str)
     def on_status(self, g, a):
+        """
+        Status callback (currently unused).
+        Could be used to show text in status bar or logs.
+        g: smoothed primary gesture
+        a: joined key string (e.g., "right+shift")
+        """
         pass
 
     def closeEvent(self, e):
+        """
+        Stop worker thread when main window is closed.
+        """
         if self.worker:
             self.worker.stop()
             self.worker.wait(500)
         return super().closeEvent(e)
 
 
+# =============================================================
+#                 APP CONTROLLER (SWITCHING)
+# =============================================================
+
 class AppController(QtCore.QObject):
+    """
+    Controller to manage transitions between:
+    - SettingsWindow (first)
+    - MainWindow (after Start)
+    """
     def __init__(self):
         super().__init__()
         self.settings = SettingsWindow()
@@ -678,6 +1053,10 @@ class AppController(QtCore.QObject):
         self.main = None
 
     def on_mapping_chosen(self, mapping):
+        """
+        Called when user presses Start in settings window.
+        Show main window and apply mapping.
+        """
         if self.main is None:
             self.main = MainWindow(mapping)
             self.main.requestSettings.connect(self.on_request_settings)
@@ -688,14 +1067,26 @@ class AppController(QtCore.QObject):
         self.settings.hide()
 
     def on_request_settings(self):
+        """
+        Called when user presses Setting in main window.
+        Show settings window with current mapping.
+        """
         if self.main:
             m = self.main.mapping
             self.settings.set_mapping(m)
         self.settings.show()
 
     def on_app_quit(self):
+        """
+        If settings window is closed without starting,
+        quit the whole application.
+        """
         QtWidgets.QApplication.quit()
 
+
+# =============================================================
+#                        ENTRY POINT
+# =============================================================
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
